@@ -122,9 +122,13 @@ class Runner():
     def run_train_fold(i_fold):
         pass
 
-    def run_train_cv(self):
+    def run_train_cv(self, k: int):
         '''
         クロスバリデーションでモデルの学習、予測を行う。
+
+        ## 引数
+
+        k: 分割数
         '''
 
         # 目的変数と説明変数に分ける
@@ -141,11 +145,12 @@ class Runner():
         self.feature_imp = pd.DataFrame()
 
         # figure, ax作成
-        fig_tree, axes_tree = plt.subplots(3, 2, figsize=(15, 5), dpi=200, facecolor='w')
-        fig_metric, axes_metric = plt.subplots(3, 2, figsize=(10, 10), dpi=200, facecolor='w')
+        fig_tree, axes_tree = plt.subplots((k + 1) // 2, 2, figsize=(15, 5), dpi=200, facecolor='w')
+        fig_metric, axes_metric = plt.subplots(
+            (k + 1) // 2, 2, figsize=(10, 10), dpi=200, facecolor='w')
 
-        # ↓クラスの割合をそのままにランダムで５分割する
-        kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=72)
+        # ↓クラスの割合をそのままにランダムでk分割する
+        kf = StratifiedKFold(n_splits=k, shuffle=True, random_state=72)
 
         # クロスバリデーションのループ
         for tr_idx, va_idx in kf.split(train_x, train_y):
@@ -185,7 +190,7 @@ class Runner():
             model.save_model()
 
         # すべての結果をtotalにまとめる
-        self.pred['total'] = self.pred.loc[:, 'pred_1':'pred_5'].max(axis=1)
+        self.pred['total'] = self.pred.loc[:, 'pred_1':f'pred_{k}'].max(axis=1)
 
         # 平均を算出
         self.feature_imp['mean'] = self.feature_imp.mean(axis=1)
