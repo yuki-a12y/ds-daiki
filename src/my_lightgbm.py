@@ -9,6 +9,7 @@ from sklearn.metrics import confusion_matrix, classification_report, auc, roc_cu
 from typing import Any
 import pprint
 from pathlib import Path
+from imblearn.over_sampling import SMOTENC
 
 p = Path()
 BASE_DIR = p.cwd().parent.parent
@@ -99,7 +100,14 @@ class ModelLgb:
 
 
 class Runner():
-    def __init__(self, run_name: str, model_cls, data_train: DataFrame, categorical_feature: list, prms: dict = None, target_feature: str = None) -> None:
+    def __init__(self,
+                 run_name: str,
+                 model_cls: list,
+                 data_train: DataFrame,
+                 categorical_feature: list,
+                 prms: dict = None,
+                 target_feature: str = None,
+                 over_sampling: str = None) -> None:
         '''
         モデルの学習クラス
 
@@ -118,6 +126,7 @@ class Runner():
             self.target_feature = 'claim'
         else:
             self.target_feature = target_feature
+        self.over_sampling = over_sampling
 
     def run_train_fold(i_fold):
         pass
@@ -134,6 +143,13 @@ class Runner():
         # 目的変数と説明変数に分ける
         train_x, train_y = self.data_train.drop(
             self.target_feature, axis=1), self.data_train[self.target_feature]
+
+        if self.over_sampling == 'SMOTENC':
+            categorical_feature_idx: list = []
+            for cf in self.categorical_feature:
+                idx = train_x.columns.get_loc(cf)
+                categorical_feature_idx.append(idx)
+            smote_nc = SMOTENC(categorical_features=categorical_feature_idx, random_state=15)
 
         # foldはループの何回目かを表す
         fold = 0
@@ -161,6 +177,9 @@ class Runner():
             # トレーニング用とバリデーション用に分ける
             tr_x, va_x = train_x.iloc[tr_idx], train_x.iloc[va_idx]
             tr_y, va_y = train_y.iloc[tr_idx], train_y.iloc[va_idx]
+
+            if self.over_sampling == 'SMOTENC':
+                tr_x, tr_y = smote_nc.fit_resample(tr_x, tr_y)
 
             model = self.model_cls(run_fold_name=f'{self.run_name}_{fold}', prms=self.prms)
 
@@ -194,6 +213,7 @@ class Runner():
 
         # 平均を算出
         self.feature_imp['mean'] = self.feature_imp.mean(axis=1)
+        print(self.pred.shape)
 
     def run_predict_cv(self, x_test: DataFrame) -> DataFrame:
         # 予測値の入れ物（DataFrame）
